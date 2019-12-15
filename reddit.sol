@@ -16,8 +16,8 @@ contract Reddit {
         bytes content;
         uint upvotes;
         uint downvotes;
-        Reply[] replies;
-        Sub sub;
+        string subName;
+        uint[] replyIds;
     }
     
     struct Reply {
@@ -35,32 +35,29 @@ contract Reddit {
         Post[] posts;
     }
     
-    uint totalPosts;
+    uint public totalPosts;
     mapping (uint => Post) posts;
     Post[] postList;
     
-    uint totalReplies;
-    mapping (uint => Reply) replies;
+    uint public totalReplies;
+    mapping (uint => Reply) public replies;
     
-    uint subCount;
-    mapping (string => Sub) subs;
+    uint public subCount;
+    mapping (string => Sub) public subs;
     
     function createPost(string memory title, uint _postType, bytes memory content, string memory subName) public {
         PostType postType = PostType(_postType);
         Sub storage sub = subs[subName];
         
-        Post memory post = Post(
-            block.timestamp, // createdAt
-            ++totalPosts, // postId
-            title,
-            msg.sender, // author
-            postType,
-            content,
-            0, // upvotes
-            0, // downvotes
-            new Reply[](0), // replies
-            sub
-        );
+        uint newPostId = totalPosts++;
+        
+        Post storage post = posts[newPostId];
+        post.createdAt = block.timestamp;
+        post.title = title;
+        post.author = msg.sender;
+        post.postType = postType;
+        post.content = content;
+        post.subName = subName;
         
         sub.postCount++;
         sub.posts.push(post);
@@ -74,18 +71,38 @@ contract Reddit {
         
         require (post.createdAt > 0); // Make sure the post actually exists
         
-        Reply memory reply = Reply(
-            block.timestamp, // createdAt
-            ++totalReplies, // replyId
-            parentPostId,
-            msg.sender, // author,
-            content,
-            0, // upvotes
-            0 // downvotes
-        );
+        Reply memory reply = Reply({
+            createdAt: block.timestamp,
+            replyId: totalReplies++,
+            parentPostId: parentPostId,
+            author: msg.sender,
+            content: content,
+            upvotes: 0,
+            downvotes: 0
+        });
         
-        post.replies.push(reply);
+        post.replyIds.push(reply.replyId);
         
         replies[reply.replyId] = reply;
+    }
+    
+    function getPost(uint postId) public view returns (uint createdAt, string memory title, address author, PostType postType, bytes memory content, uint upvotes, uint downvotes, string memory subName, uint[] memory replyIds) {
+        Post storage post = posts[postId];
+        
+        return (
+            post.createdAt,
+            post.title,
+            post.author,
+            post.postType,
+            post.content,
+            post.upvotes,
+            post.downvotes,
+            post.subName,
+            post.replyIds
+        );
+    }
+    
+    function getLastPostsBySub(string memory subName) public view {
+        
     }
 }
