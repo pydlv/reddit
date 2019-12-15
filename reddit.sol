@@ -31,13 +31,12 @@ contract Reddit {
     }
     
     struct Sub {
-        uint postCount;
-        Post[] posts;
+        mapping (uint => uint) postIds;
+        uint postIdsSize;
     }
     
     uint public totalPosts;
     mapping (uint => Post) posts;
-    Post[] postList;
     
     uint public totalReplies;
     mapping (uint => Reply) public replies;
@@ -52,6 +51,7 @@ contract Reddit {
         uint newPostId = totalPosts++;
         
         Post storage post = posts[newPostId];
+        post.postId = newPostId;
         post.createdAt = block.timestamp;
         post.title = title;
         post.author = msg.sender;
@@ -59,17 +59,15 @@ contract Reddit {
         post.content = content;
         post.subName = subName;
         
-        sub.postCount++;
-        sub.posts.push(post);
+        sub.postIds[sub.postIdsSize++] = newPostId;
         
         posts[post.postId] = post;
-        postList.push(post);
     }
     
     function createReply(uint parentPostId, bytes memory content) public {
         Post storage post = posts[parentPostId];
         
-        require (post.createdAt > 0); // Make sure the post actually exists
+        require (post.createdAt > 0, "Post does not exist."); // Make sure the post actually exists
         
         Reply memory reply = Reply({
             createdAt: block.timestamp,
@@ -86,11 +84,12 @@ contract Reddit {
         replies[reply.replyId] = reply;
     }
     
-    function getPost(uint postId) public view returns (uint createdAt, string memory title, address author, PostType postType, bytes memory content, uint upvotes, uint downvotes, string memory subName, uint[] memory replyIds) {
-        Post storage post = posts[postId];
+    function getPost(uint pid) public view returns (uint createdAt, uint postId, string memory title, address author, PostType postType, bytes memory content, uint upvotes, uint downvotes, string memory subName, uint[] memory replyIds) {
+        Post storage post = posts[pid];
         
         return (
             post.createdAt,
+            post.postId,
             post.title,
             post.author,
             post.postType,
@@ -100,9 +99,5 @@ contract Reddit {
             post.subName,
             post.replyIds
         );
-    }
-    
-    function getLastPostsBySub(string memory subName) public view {
-        
     }
 }

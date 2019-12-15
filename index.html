@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reddit</title>
+
+    <!-- development version, includes helpful console warnings -->
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    
+    <script src="https://cdn.ethers.io/scripts/ethers-v4.min.js"
+    charset="utf-8"
+    type="text/javascript"></script>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    
+    <style>
+        table {
+            font-family: arial, sans-serif;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        
+        td, th {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #dddddd;
+        }
+        
+        td a { 
+            display: block; 
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <a :href="pathname"><h1 style="text-decoration: underline;">Reddit</h1></a>
+        
+        <div v-if="page === Page.HOME">
+            <table>
+                <tr>
+                    <th>Date/Time</th>
+                    <th>Rating</th>
+                    <th>Title</th>
+                    <th>Type</th>
+                </tr>
+                <tr v-for="post in posts" :key="post.postId">
+                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.createdAt }}</a></td>
+                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.upvotes - post.downvotes }}</a></td>
+                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.title }}</a></td>
+                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.postType }}</a></td>
+                </tr>
+            </table>
+        </div>
+        <div v-else-if="page === Page.VIEWPOST">
+            <view-post-page :post-id="postId"></view-post-page>
+        </div>
+    </div>
+    
+    <script>
+        function convertTimestamp(timestamp){
+            let date = new Date(timestamp*1000);
+            return date.toUTCString();
+        }
+        
+        function reverseEnum(e, value) {
+            const keys = Object.keys(e);
+            
+            for (let i = 0; i < keys.length; i++) {
+                const key = keys[i];
+                const ev = e[key];
+                
+                if (ev === value) {
+                    return key;
+                }
+            }
+        }
+        
+        const CONTRACT_ADDRESS = '0xF56D917018D38EF5FEC5cf72fA95CB53c83FB77a';
+        const CONTRACT_ABI = [{"constant":false,"inputs":[{"internalType":"string","name":"title","type":"string"},{"internalType":"uint256","name":"_postType","type":"uint256"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"string","name":"subName","type":"string"}],"name":"createPost","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"parentPostId","type":"uint256"},{"internalType":"bytes","name":"content","type":"bytes"}],"name":"createReply","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"internalType":"uint256","name":"pid","type":"uint256"}],"name":"getPost","outputs":[{"internalType":"uint256","name":"createdAt","type":"uint256"},{"internalType":"uint256","name":"postId","type":"uint256"},{"internalType":"string","name":"title","type":"string"},{"internalType":"address","name":"author","type":"address"},{"internalType":"enum Reddit.PostType","name":"postType","type":"uint8"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"uint256","name":"upvotes","type":"uint256"},{"internalType":"uint256","name":"downvotes","type":"uint256"},{"internalType":"string","name":"subName","type":"string"},{"internalType":"uint256[]","name":"replyIds","type":"uint256[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"replies","outputs":[{"internalType":"uint256","name":"createdAt","type":"uint256"},{"internalType":"uint256","name":"replyId","type":"uint256"},{"internalType":"uint256","name":"parentPostId","type":"uint256"},{"internalType":"address","name":"author","type":"address"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"uint256","name":"upvotes","type":"uint256"},{"internalType":"uint256","name":"downvotes","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"subCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"internalType":"string","name":"","type":"string"}],"name":"subs","outputs":[{"internalType":"uint256","name":"postIdsSize","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalPosts","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalReplies","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}];
+        
+        const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');
+        
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+        
+        const PostType = {"TEXT": 0, "LINK": 1, "IPFS": 2};
+        Object.freeze(PostType);
+        
+        const Page = {"HOME": 0, "VIEWPOST": 1, "CREATEPOST": 2};
+        Object.freeze(Page);
+
+        Vue.component('post', {
+            props: {
+                postId: { required: true }
+            },
+
+            data() {
+                return {
+                    post: null,
+                    PostType
+                };
+            },
+
+            computed: {
+                contentText() {
+                    if (this.post.postType === 'TEXT') {
+                        return ethers.utils.toUtf8String(this.post.content);
+                    }
+                }
+            },
+
+            async mounted() {
+                const post = await contract.getPost(this.postId);
+                console.log(post);
+                this.post = {
+                    createdAt: convertTimestamp(post.createdAt.toNumber()),
+                    postId: post.postId.toNumber(),
+                    title: post.title,
+                    author: post.author,
+                    postType: reverseEnum(PostType, post.postType),
+                    content: post.content,
+                    upvotes: post.upvotes,
+                    downvotes: post.downvotes,
+                    subName: post.subName,
+                    replyIds: post.replyIds
+                };
+            },
+
+            template: `
+            <div v-if="post !== null">
+                <div class="center justify-content-between">
+                    <p class="d-inline font-weight-bold">{{ post.title }}</p>
+                    <p class="d-inline"> {{ post.upvotes - post.downvotes }} points</p>
+                    <p class="d-inline">{{ post.author }}</p>
+                    <p class="d-inline">{{ post.createdAt }}</p>
+                    <p class="d-inline">{{ post.replyIds.length }} replies</p>
+                </div>
+                <div v-if="post.postType === 'TEXT'">
+                    <p>{{ contentText }}</p>
+                </div>
+            </div>
+            `
+        });
+
+        Vue.component('view-post-page', {
+            props: {
+                postId: { required: true }
+            },
+
+            data () {
+                return {
+                    
+                };
+            },
+
+            template: `
+            <div>
+                <post :post-id="postId"></post>
+            </div>
+            `
+        });
+        
+        var app = new Vue({
+            el: '#app',
+            
+            data () {
+                return {
+                    posts: [],
+                    offset: 0,
+                    limit: 20,
+                    Page
+                }
+            },
+            
+            computed: {
+                pathname() {
+                    return window.location.pathname;
+                },
+
+                urlParams () {
+                    return new URLSearchParams(window.location.search);
+                },
+                
+                page() {
+                    if (this.urlParams.has('postId')) {
+                        return Page.VIEWPOST;
+                    }
+                    
+                    return Page.HOME;
+                },
+
+                postId() {
+                    return parseInt(this.urlParams.get('postId'));
+                }
+            },
+            
+            methods: {
+                async loadMorePosts() {
+                    const totalPosts = (await contract.totalPosts()).toNumber();
+                    
+                    if (totalPosts > this.offset) {
+                        for (let i = totalPosts - this.offset - 1; i > totalPosts - this.offset - this.limit - 1 && i >= 0; i--) {
+                            const post = await contract.getPost(i);
+                            this.posts.push({
+                                createdAt: convertTimestamp(post.createdAt.toNumber()),
+                                postId: post.postId.toNumber(),
+                                title: post.title,
+                                author: post.author,
+                                postType: reverseEnum(PostType, post.postType),
+                                content: post.content,
+                                upvotes: post.upvotes,
+                                downvotes: post.downvotes,
+                                subName: post.subName,
+                                replyIds: post.replyIds
+                            });
+                        }
+                    }
+                    
+                    this.offset += this.limit;
+                }
+            },
+            
+            mounted () {
+                this.loadMorePosts();
+            }
+        });
+    </script>
+</body>
+</html>
