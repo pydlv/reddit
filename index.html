@@ -33,23 +33,31 @@
             display: block; 
             text-decoration: none;
         }
+
+        form label {
+            display: block;
+        }
     </style>
 </head>
 <body>
-    <div id="app">
+    <div id="app" class="container">
         <a :href="pathname"><h1 style="text-decoration: underline;">Reddit</h1></a>
         
         <div v-if="page === Page.HOME">
+            <new-post-form></new-post-form>
+
             <table>
                 <tr>
                     <th>Date/Time</th>
                     <th>Rating</th>
+                    <th>Sub</th>
                     <th>Title</th>
                     <th>Type</th>
                 </tr>
                 <tr v-for="post in posts" :key="post.postId">
                     <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.createdAt }}</a></td>
                     <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.upvotes - post.downvotes }}</a></td>
+                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.subName }}</a></td>
                     <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.title }}</a></td>
                     <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.postType }}</a></td>
                 </tr>
@@ -78,19 +86,124 @@
                 }
             }
         }
+
+        function hexlifyString(str) {
+            return ethers.utils.hexlify(ethers.utils.toUtf8Bytes(str));
+        }
         
         const CONTRACT_ADDRESS = '0xF56D917018D38EF5FEC5cf72fA95CB53c83FB77a';
         const CONTRACT_ABI = [{"constant":false,"inputs":[{"internalType":"string","name":"title","type":"string"},{"internalType":"uint256","name":"_postType","type":"uint256"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"string","name":"subName","type":"string"}],"name":"createPost","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"parentPostId","type":"uint256"},{"internalType":"bytes","name":"content","type":"bytes"}],"name":"createReply","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"internalType":"uint256","name":"pid","type":"uint256"}],"name":"getPost","outputs":[{"internalType":"uint256","name":"createdAt","type":"uint256"},{"internalType":"uint256","name":"postId","type":"uint256"},{"internalType":"string","name":"title","type":"string"},{"internalType":"address","name":"author","type":"address"},{"internalType":"enum Reddit.PostType","name":"postType","type":"uint8"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"uint256","name":"upvotes","type":"uint256"},{"internalType":"uint256","name":"downvotes","type":"uint256"},{"internalType":"string","name":"subName","type":"string"},{"internalType":"uint256[]","name":"replyIds","type":"uint256[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"replies","outputs":[{"internalType":"uint256","name":"createdAt","type":"uint256"},{"internalType":"uint256","name":"replyId","type":"uint256"},{"internalType":"uint256","name":"parentPostId","type":"uint256"},{"internalType":"address","name":"author","type":"address"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"uint256","name":"upvotes","type":"uint256"},{"internalType":"uint256","name":"downvotes","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"subCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"internalType":"string","name":"","type":"string"}],"name":"subs","outputs":[{"internalType":"uint256","name":"postIdsSize","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalPosts","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalReplies","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}];
+
+        var provider;
+        var signer = null;
         
-        const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');
+        if (typeof window.web3 !== 'undefined' && typeof window.ethereum !== 'undefined') {
+            // MetaMask injected
+            provider = new ethers.providers.Web3Provider(web3.currentProvider);
+            signer = provider.getSigner();
+
+            window.ethereum.enable();
+        } else {
+            alert("MetaMask was not detected, so you are in read-only mode.");
+            provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');    
+        }
         
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+        const readOnly = signer === null;
+
+
+        var contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+        if (!readOnly) {
+            contract = contract.connect(signer);
+        }
         
         const PostType = {"TEXT": 0, "LINK": 1, "IPFS": 2};
         Object.freeze(PostType);
         
         const Page = {"HOME": 0, "VIEWPOST": 1, "CREATEPOST": 2};
         Object.freeze(Page);
+
+        Vue.component('new-post-form', {
+            data() {
+                return {
+                    showing: false,
+                    postType: 'TEXT',
+                    sub: '',
+                    title: '',
+                    body: '',
+                    link: '',
+                    ipfs: ''
+                }
+            },
+
+            methods: {
+                async submitted(e) {
+                    e.preventDefault();
+
+                    let content;
+                    
+                    if (this.postType === 'TEXT') {
+                        content = hexlifyString(this.body);
+                    } else if (this.postType === 'LINK') {
+                        content = hexlifyString(this.link);
+                    } else {
+                        content = hexlifyString(this.ipfs);
+                    }
+
+                    const tx = await contract.createPost(this.title, PostType[this.postType], content, this.sub);
+
+                    console.log(tx.hash);
+
+                    await tx.wait();
+
+                    alert("Post created successfully.");
+
+                    this.showing = false;
+                    this.postType = 'TEXT';
+                    this.sub = '';
+                    this.title = '';
+                    this.body = '';
+                    this.link = '';
+                    this.ipfs = '';
+                },
+
+                canceled(e) {
+                    e.preventDefault();
+
+                    this.showing = false;
+                }
+            },
+
+            template: `
+            <div>
+                <button @click="showing=!showing">New Post</button>
+                <div v-show="showing" class="m-3">
+                    <form>
+                        <label>Type: 
+                            <select v-model="postType">
+                                <option value="TEXT">TEXT</option>
+                                <option value="LINK">LINK</option>
+                                <option value="IPFS">IPFS</option>
+                            </select>
+                        </label>
+                        <label>Sub: <input type="text" size="30" v-model="sub"></input></label>
+                        <label>Title: <input type="text" size="50" v-model="title"></input></label>
+                        <div v-if="postType === 'TEXT'">
+                            <label>Body:</label>
+                            <textarea cols="100" rows="8" v-model="body"></textarea>
+                        </div>
+                        <div v-else-if="postType === 'LINK'">
+                            <label>URL: <input type="text" size="75" v-model="link"></input></label>
+                        </div>
+                        <div v-else>
+                            <label>IPFS: <input type="text" v-model="ipfs" placeholder="e.g. /ipfs/QmW2WQi7j6c7UgJTarActp7tDNikE4B2qXtFCfLPdsgaTQ/cat.jpg" size="75"></input></label>
+                        </div>
+                        <button @click="submitted($event)">Save</button>
+                        <button @click="canceled($event)">Cancel</button>
+                    </form>
+                </div>
+            </div>
+            `
+        });
 
         Vue.component('post', {
             props: {
@@ -106,15 +219,29 @@
 
             computed: {
                 contentText() {
-                    if (this.post.postType === 'TEXT') {
-                        return ethers.utils.toUtf8String(this.post.content);
-                    }
+                    const raw = ethers.utils.toUtf8String(this.post.content);
+
+                    return raw;
+                },
+
+                // previews() {
+                //     const result = [];
+
+
+                // }
+            },
+
+            methods: {
+                replaceLinks() {
+                    const original = this.$refs['post-text'].innerHTML;
+                    const newTxt = original.replace(/(((f|ht)tp(s)?:\/\/)[-a-zA-Zа-яА-Я()0-9@:%_+.~#?&;//=]+)/gi, '<a href="$1" target="_blank">$1</a>');
+                    this.$refs['post-text'].innerHTML = newTxt;
                 }
             },
 
             async mounted() {
                 const post = await contract.getPost(this.postId);
-                console.log(post);
+
                 this.post = {
                     createdAt: convertTimestamp(post.createdAt.toNumber()),
                     postId: post.postId.toNumber(),
@@ -129,17 +256,31 @@
                 };
             },
 
+            updated() {
+                this.replaceLinks();
+            },
+
             template: `
-            <div v-if="post !== null">
-                <div class="center justify-content-between">
+            <div v-if="post !== null" class="border border-secondary mt-3 mb-3 p-1">
+                <div>
                     <p class="d-inline font-weight-bold">{{ post.title }}</p>
                     <p class="d-inline"> {{ post.upvotes - post.downvotes }} points</p>
                     <p class="d-inline">{{ post.author }}</p>
                     <p class="d-inline">{{ post.createdAt }}</p>
                     <p class="d-inline">{{ post.replyIds.length }} replies</p>
+                    <p class="d-inline float-right font-weight-bold">#1</p>
                 </div>
-                <div v-if="post.postType === 'TEXT'">
-                    <p>{{ contentText }}</p>
+                <div class="p-2">
+                    <div v-if="post.postType === 'TEXT'">
+                        <p><span style="white-space: pre;" ref="post-text">{{ contentText }}</span></p>
+                    </div>
+                    <div v-else-if="post.postType === 'LINK'">
+                        <a :href="contentText" target="_blank"><p>{{ contentText }}</p></a>
+                    </div>
+                    <div v-else>
+                        <a :href="'https://ipfs.io' + contentText" target="_blank"><p>{{ 'https://ipfs.io' + contentText }}</p></a>
+                        <img :src="'https://ipfs.io' + contentText" style="max-height: 100%; max-width: 100%" />
+                    </div>
                 </div>
             </div>
             `
