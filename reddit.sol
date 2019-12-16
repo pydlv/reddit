@@ -1,18 +1,11 @@
 pragma solidity ^0.5.12;
 
 contract Reddit {
-    enum PostType {
-        Text,
-        Link,
-        IPFS
-    }
-    
     struct Post {
         uint createdAt;
         uint postId;
         string title;
         address author;
-        PostType postType;
         bytes content;
         uint upvotes;
         uint downvotes;
@@ -44,8 +37,7 @@ contract Reddit {
     uint public subCount;
     mapping (string => Sub) public subs;
     
-    function createPost(string memory title, uint _postType, bytes memory content, string memory subName) public {
-        PostType postType = PostType(_postType);
+    function createPost(string memory title, bytes memory content, string memory subName) public {
         Sub storage sub = subs[subName];
         
         uint newPostId = totalPosts++;
@@ -55,7 +47,6 @@ contract Reddit {
         post.createdAt = block.timestamp;
         post.title = title;
         post.author = msg.sender;
-        post.postType = postType;
         post.content = content;
         post.subName = subName;
         
@@ -84,7 +75,7 @@ contract Reddit {
         replies[reply.replyId] = reply;
     }
     
-    function getPost(uint pid) public view returns (uint createdAt, uint postId, string memory title, address author, PostType postType, bytes memory content, uint upvotes, uint downvotes, string memory subName, uint[] memory replyIds) {
+    function getPost(uint pid) public view returns (uint createdAt, uint postId, string memory title, address author, bytes memory content, uint upvotes, uint downvotes, string memory subName, uint[] memory replyIds) {
         Post storage post = posts[pid];
         
         return (
@@ -92,12 +83,43 @@ contract Reddit {
             post.postId,
             post.title,
             post.author,
-            post.postType,
             post.content,
             post.upvotes,
             post.downvotes,
             post.subName,
             post.replyIds
         );
+    }
+    
+    function upvotePost(uint postId) public {
+        Post storage post = posts[postId];
+        
+        require(post.createdAt > 0, "Post does not exist.");
+        
+        post.upvotes++;
+    }
+    
+    function downvotePost(uint postId) public {
+        Post storage post = posts[postId];
+        
+        require(post.createdAt > 0, "Post does not exist.");
+        
+        post.downvotes++;
+    }
+    
+    function upvoteReply(uint replyId) public {
+        Reply storage reply = replies[replyId];
+        
+        require(reply.createdAt > 0, "Reply does not exist.");
+        
+        reply.upvotes++;
+    }
+    
+    function downvoteReply(uint replyId) public {
+        Reply storage reply = replies[replyId];
+        
+        require(reply.createdAt > 0, "Reply does not exist.");
+        
+        reply.downvotes++;
     }
 }
