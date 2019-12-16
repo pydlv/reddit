@@ -41,6 +41,8 @@
         img.preview-image {
             max-height: 100%;
             max-width: 100%;
+            margin-top: 10px;
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -61,12 +63,12 @@
                     <th>Type</th>
                 </tr>
                 <tr v-for="post in posts" :key="post.postId">
-                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.createdAt }}</a></td>
-                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.upvotes - post.downvotes }}</a></td>
-                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.subName }}</a></td>
-                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.title }}</a></td>
-                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.replyIds.length }}</a></td>
-                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.postType }}</a></td>
+                    <td><a :href="`?postId=${post.postId}`">{{ post.createdAt }}</a></td>
+                    <td><a :href="`?postId=${post.postId}`">{{ post.upvotes - post.downvotes }}</a></td>
+                    <td><a :href="`?postId=${post.postId}`">{{ post.subName }}</a></td>
+                    <td><a :href="`?postId=${post.postId}`">{{ post.title }}</a></td>
+                    <td><a :href="`?postId=${post.postId}`">{{ post.replyIds.length }}</a></td>
+                    <td><a :href="`?postId=${post.postId}`">{{ post.postType }}</a></td>
                 </tr>
             </table>
         </div>
@@ -96,6 +98,12 @@
 
         function hexlifyString(str) {
             return ethers.utils.hexlify(ethers.utils.toUtf8Bytes(str));
+        }
+
+        function hexToBase64(hexstring) {
+            return btoa(hexstring.match(/\w{2}/g).map(function(a) {
+                return String.fromCharCode(parseInt(a, 16));
+            }).join(""));
         }
         
         const CONTRACT_ADDRESS = '0xF56D917018D38EF5FEC5cf72fA95CB53c83FB77a';
@@ -129,7 +137,8 @@
         const Page = {"HOME": 0, "VIEWPOST": 1, "CREATEPOST": 2};
         Object.freeze(Page);
 
-        const IMAGE_REGEX = /((?:(?:f|ht)tp(?:s)?:\/\/)[-a-zA-Zа-яА-Я()0-9@:%_+.~#?&;//=]+\.(?:jpg|jpeg|png|gif))/gi;
+        // const IMAGE_REGEX = /((?:(?:f|ht)tp(?:s)?:\/\/)[-a-zA-Zа-яА-Я()0-9@:%_+.~#?&;//=]+\.(?:jpg|jpeg|png|gif))/gi;
+        const IMAGE_REGEX = /(?=(?:img:)?|.*(?:\.(?:jpg|jpeg|png|gif)))((?:(?:f|ht)tp(?:s)?:\/\/)[-a-zA-Zа-яА-Я()0-9@:%_+.~#?&;//=]+)/gi;
 
         Vue.component('new-post-form', {
             data() {
@@ -212,34 +221,68 @@
             `
         });
 
-        Vue.component('post', {
-            props: {
-                postId: { required: true }
-            },
+        Vue.component('new-reply-form', {
+            props: ['parentPostId'],
 
             data() {
                 return {
-                    post: null,
+                    showing: false,
+                    body: ''
+                }
+            },
+
+            methods: {
+                async submitted(e) {
+                    e.preventDefault();
+                    
+                    const content = hexlifyString(this.body);
+
+                    const tx = await contract.createReply(this.parentPostId, content);
+
+                    await tx.wait();
+
+                    alert("Reply created successfully.");
+
+                    this.showing = false;
+
+                    location.reload();
+                },
+
+                canceled(e) {
+                    e.preventDefault();
+
+                    this.showing = false;
+                }
+            },
+
+            template: `
+            <div>
+                <button @click="showing=!showing">Reply</button>
+                <div v-show="showing" class="m-3">
+                    <form>
+                        <label>Message:</label>
+                        <textarea cols="100" rows="8" v-model="body" class="d-block"></textarea>
+                        <button @click="submitted($event)">Save</button>
+                        <button @click="canceled($event)">Cancel</button>
+                    </form>
+                </div>
+            </div>
+            `
+        });
+
+        Vue.component('post', {
+            props: ['post', 'reply'],
+
+            data() {
+                return {
+                    previews: [],
                     PostType
                 };
             },
 
             computed: {
                 contentText() {
-                    return ethers.utils.toUtf8String(this.post.content);
-                },
-
-                previews() {
-                    const result = [];
-
-                    const images = [];
-
-                    const imageMatches = Array.from(new Set([...this.contentText.matchAll(IMAGE_REGEX)].flatMap((url) => url)));
-                    imageMatches.forEach((imageUrl) => {
-                        result.push(`<a href="${imageUrl}" target="_blank"><img src="${imageUrl}" class="preview-image" /></a>`)
-                    });
-
-                    return result;
+                    return ethers.utils.toUtf8String(this.post ? this.post.content : this.reply.content);
                 }
             },
 
@@ -248,7 +291,92 @@
                     const original = this.$refs['post-text'].innerHTML;
                     const newTxt = original.replace(/(((f|ht)tp(s)?:\/\/)[-a-zA-Zа-яА-Я()0-9@:%_+.~#?&;//=]+)/gi, '<a href="$1" target="_blank">$1</a>');
                     this.$refs['post-text'].innerHTML = newTxt;
+                },
+
+                loadPreviews() {
+                    const imageMatches = Array.from(new Set([...this.contentText.matchAll(IMAGE_REGEX)].map((match) => match[0])));
+                    imageMatches.forEach((imageUrl) => {
+                        this.previews.push(`<a href="${imageUrl}" target="_blank"><img src="${imageUrl}" class="preview-image" alt="Preview image" /></a>`)
+                    });
+
+                    const imageTxs = Array.from(new Set([...this.contentText.matchAll(/eth-tx-img:(0x[A-Fa-f0-9]{64})/gi)].map((match) => match[1])));
+
+                    imageTxs.forEach((txHash) => {
+                        provider.getTransaction(txHash).then((tx) => {
+                            if (tx !== null) {
+                                const hex = tx.data.slice(2);
+                                
+                                const b64 = hexToBase64(hex);
+                                
+                                this.previews.push(`<a href="https://etherscan.io/tx/${txHash}" target="_blank"><img src="data:image/jpeg;base64, ${b64}" class="preview-image" alt="Preview image" /></a>`)
+                            }
+                        });
+                    });
                 }
+            },
+
+            mounted() {
+                this.replaceLinks();
+                this.loadPreviews();
+            },
+
+            updated() {
+
+            },
+
+            template: `
+            <div class="border border-secondary mt-3 mb-3 p-1">
+                <div v-if="post !== undefined">
+                    <!-- original post -->
+                    <p class="d-inline font-weight-bold">{{ post.title }}</p>
+                    <p class="d-inline"> {{ post.upvotes - post.downvotes }} points</p>
+                    <p class="d-inline">{{ post.author }}</p>
+                    <p class="d-inline">{{ post.createdAt }}</p>
+                    <p class="d-inline">{{ post.replyIds.length }} replies</p>
+                    <p class="d-inline float-right font-weight-bold">#1</p>
+                </div>
+                <div v-else>
+                    <!-- reply -->
+                    <p class="d-inline"> {{ reply.upvotes - reply.downvotes }} points</p>
+                    <p class="d-inline">{{ reply.author }}</p>
+                    <p class="d-inline">{{ reply.createdAt }}</p>
+                    <p class="d-inline float-right font-weight-bold">#1</p>
+                </div>
+                <div class="p-2">
+                    <p><span style="white-space: pre;" ref="post-text">{{ contentText }}</span></p>
+                    <div>
+                        <!-- Previews -->
+                        <div v-for="preview in previews" v-html="preview"></div>
+                    </div>
+                </div>
+
+                <div v-if="post !== undefined">
+                    <new-reply-form :parentPostId="post.postId"></new-reply-form>
+                </div>
+                <div v-else>
+                    <new-reply-form :parentPostId="reply.parentPostId"></new-reply-form>
+                </div>
+            </div>
+            `
+        });
+
+        Vue.component('view-post-page', {
+            template: `
+            <div v-if="post !== null && replies.length === post.replyIds.length">
+                <post :post="post"></post>
+                <post v-for="reply in replies" :key="reply.replyId" :reply="reply"></post>
+            </div>
+            `,
+
+            props: {
+                postId: { required: true }
+            },
+
+            data() {
+                return {
+                    post: null,
+                    replies: []
+                };
             },
 
             async mounted() {
@@ -266,58 +394,22 @@
                     subName: post.subName,
                     replyIds: post.replyIds
                 };
+
+                // Load the replies
+                this.post.replyIds.forEach(async (replyId) => {
+                    const reply = await contract.replies(replyId);
+
+                    this.replies.push({
+                        createdAt: convertTimestamp(post.createdAt.toNumber()),
+                        replyId: reply.replyId.toNumber(),
+                        author: reply.author,
+                        parentPostId: reply.parentPostId.toNumber(),
+                        content: reply.content,
+                        upvotes: reply.upvotes,
+                        downvotes: reply.downvotes
+                    });
+                });
             },
-
-            updated() {
-                this.replaceLinks();
-            },
-
-            template: `
-            <div v-if="post !== null" class="border border-secondary mt-3 mb-3 p-1">
-                <div>
-                    <p class="d-inline font-weight-bold">{{ post.title }}</p>
-                    <p class="d-inline"> {{ post.upvotes - post.downvotes }} points</p>
-                    <p class="d-inline">{{ post.author }}</p>
-                    <p class="d-inline">{{ post.createdAt }}</p>
-                    <p class="d-inline">{{ post.replyIds.length }} replies</p>
-                    <p class="d-inline float-right font-weight-bold">#1</p>
-                </div>
-                <div class="p-2">
-                    <div v-if="post.postType === 'TEXT'">
-                        <p><span style="white-space: pre;" ref="post-text">{{ contentText }}</span></p>
-                    </div>
-                    <div v-else-if="post.postType === 'LINK'">
-                        <a :href="contentText" target="_blank"><p>{{ contentText }}</p></a>
-                    </div>
-                    <div v-else>
-                        <a :href="'https://ipfs.io' + contentText" target="_blank"><p>{{ 'https://ipfs.io' + contentText }}</p></a>
-                        <img :src="'https://ipfs.io' + contentText" style="max-height: 100%; max-width: 100%" />
-                    </div>
-                    <div>
-                        <!-- Previews -->
-                        <div v-for="preview in previews" v-html="preview"></div>
-                    </div>
-                </div>
-            </div>
-            `
-        });
-
-        Vue.component('view-post-page', {
-            props: {
-                postId: { required: true }
-            },
-
-            data () {
-                return {
-                    
-                };
-            },
-
-            template: `
-            <div>
-                <post :post-id="postId"></post>
-            </div>
-            `
         });
         
         var app = new Vue({
@@ -335,6 +427,10 @@
             computed: {
                 pathname() {
                     return window.location.pathname;
+                },
+
+                origin() {
+                    return window.location.origin;
                 },
 
                 urlParams () {
