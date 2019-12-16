@@ -37,6 +37,11 @@
         form label {
             display: block;
         }
+
+        img.preview-image {
+            max-height: 100%;
+            max-width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -52,6 +57,7 @@
                     <th>Rating</th>
                     <th>Sub</th>
                     <th>Title</th>
+                    <th>Replies</th>
                     <th>Type</th>
                 </tr>
                 <tr v-for="post in posts" :key="post.postId">
@@ -59,6 +65,7 @@
                     <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.upvotes - post.downvotes }}</a></td>
                     <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.subName }}</a></td>
                     <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.title }}</a></td>
+                    <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.replyIds.length }}</a></td>
                     <td><a :href="`${pathname}?postId=${post.postId}`" target="_blank">{{ post.postType }}</a></td>
                 </tr>
             </table>
@@ -122,6 +129,8 @@
         const Page = {"HOME": 0, "VIEWPOST": 1, "CREATEPOST": 2};
         Object.freeze(Page);
 
+        const IMAGE_REGEX = /((?:(?:f|ht)tp(?:s)?:\/\/)[-a-zA-Zа-яА-Я()0-9@:%_+.~#?&;//=]+\.(?:jpg|jpeg|png|gif))/gi;
+
         Vue.component('new-post-form', {
             data() {
                 return {
@@ -150,8 +159,6 @@
                     }
 
                     const tx = await contract.createPost(this.title, PostType[this.postType], content, this.sub);
-
-                    console.log(tx.hash);
 
                     await tx.wait();
 
@@ -219,16 +226,21 @@
 
             computed: {
                 contentText() {
-                    const raw = ethers.utils.toUtf8String(this.post.content);
-
-                    return raw;
+                    return ethers.utils.toUtf8String(this.post.content);
                 },
 
-                // previews() {
-                //     const result = [];
+                previews() {
+                    const result = [];
 
+                    const images = [];
 
-                // }
+                    const imageMatches = Array.from(new Set([...this.contentText.matchAll(IMAGE_REGEX)].flatMap((url) => url)));
+                    imageMatches.forEach((imageUrl) => {
+                        result.push(`<a href="${imageUrl}" target="_blank"><img src="${imageUrl}" class="preview-image" /></a>`)
+                    });
+
+                    return result;
+                }
             },
 
             methods: {
@@ -280,6 +292,10 @@
                     <div v-else>
                         <a :href="'https://ipfs.io' + contentText" target="_blank"><p>{{ 'https://ipfs.io' + contentText }}</p></a>
                         <img :src="'https://ipfs.io' + contentText" style="max-height: 100%; max-width: 100%" />
+                    </div>
+                    <div>
+                        <!-- Previews -->
+                        <div v-for="preview in previews" v-html="preview"></div>
                     </div>
                 </div>
             </div>
