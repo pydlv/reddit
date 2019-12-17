@@ -9,7 +9,7 @@ contract Reddit {
         bytes content;
         uint upvotes;
         uint downvotes;
-        string subName;
+        bytes32 subName;
         uint[] replyIds;
     }
     
@@ -24,8 +24,7 @@ contract Reddit {
     }
     
     struct Sub {
-        mapping (uint => uint) postIds;
-        uint postIdsSize;
+        uint[] postIds;
     }
     
     uint public totalPosts;
@@ -35,9 +34,9 @@ contract Reddit {
     mapping (uint => Reply) public replies;
     
     uint public subCount;
-    mapping (string => Sub) public subs;
+    mapping (bytes32 => Sub) subs;
     
-    function createPost(string memory title, bytes memory content, string memory subName) public {
+    function createPost(string memory title, bytes memory content, bytes32 subName) public {
         Sub storage sub = subs[subName];
         
         uint newPostId = totalPosts++;
@@ -50,7 +49,7 @@ contract Reddit {
         post.content = content;
         post.subName = subName;
         
-        sub.postIds[sub.postIdsSize++] = newPostId;
+        sub.postIds.push(newPostId);
         
         posts[post.postId] = post;
     }
@@ -75,7 +74,7 @@ contract Reddit {
         replies[reply.replyId] = reply;
     }
     
-    function getPost(uint pid) public view returns (uint createdAt, uint postId, string memory title, address author, bytes memory content, uint upvotes, uint downvotes, string memory subName, uint[] memory replyIds) {
+    function getPost(uint pid) public view returns (uint createdAt, uint postId, string memory title, address author, bytes memory content, uint upvotes, uint downvotes, bytes32 subName, uint[] memory replyIds) {
         Post storage post = posts[pid];
         
         return (
@@ -89,6 +88,63 @@ contract Reddit {
             post.subName,
             post.replyIds
         );
+    }
+    
+    function getRecentPostIdsInSub(bytes32 subName, uint offset, uint limit) public view returns (uint[] memory postIds) {
+        Sub storage sub = subs[subName];
+        
+        uint numPostsInSub = sub.postIds.length;
+        
+        uint k = offset <= numPostsInSub ? numPostsInSub - offset : 0;
+        
+        uint numToReturn = k < limit ? k : limit;
+        
+        if (numToReturn == 0) {
+            return new uint[](0);
+        }
+        
+        uint[] memory result = new uint[](numToReturn);
+        
+        uint start = numPostsInSub - offset - 1;
+        uint end = numPostsInSub - offset - limit; // Inclusive
+        end = end > 0 && end <= start ? end : 0; // Must check end is less than start otherwise end can underflow which causes problems.
+        
+        uint j = 0;
+        for (uint i=start; i >= end; i--) {
+            result[j] = sub.postIds[i];
+            
+            if (i == 0) {
+                break; // Necessary otherwise it will underflow
+            }
+            
+            j++;
+        }
+        
+        return result;
+    }
+    
+    function getRecentlyActiveSubs() public view returns (bytes32[] memory) {
+        bytes32[] memory result = new bytes32[](50);
+        
+        if (totalPosts == 0) {
+            return result;
+        }
+        
+        uint start = totalPosts > 49 ? 49 : totalPosts - 1;
+        uint end = 0;
+        
+        uint j = 0;
+        for (uint i = start; i >= end; i--) {
+            result[j] = posts[i].subName;
+            
+            if (i == 0) {
+                break;
+            }
+            
+            j++;
+        }
+        
+        return result;
     }
     
     function upvotePost(uint postId) public {
