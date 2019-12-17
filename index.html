@@ -83,8 +83,8 @@
                     <th>Rating</th>
                     <th>Replies</th>
                 </tr>
-                <tr v-for="post in posts" :key="post.postId">
-                    <td><a :href="$buildUrl({postId: post.postId}, false)">{{ post.createdAt }}</a></td>
+                <tr v-for="post in sortedPosts" :key="post.postId">
+                    <td><a :href="$buildUrl({postId: post.postId}, false)">{{ $formatTimestamp(post.createdAt) }}</a></td>
                     <td><a :href="$buildUrl({postId: post.postId}, false)">{{ $truncateString(post.title) }}</a></td>
                     <td><a :href="$buildUrl({postId: post.postId}, false)">{{ post.upvotes - post.downvotes }}</a></td>
                     <td><a :href="$buildUrl({postId: post.postId}, false)">{{ post.replyIds.length }}</a></td>
@@ -366,7 +366,7 @@
                     <p class="d-inline" v-if="post.subName !== ''">in <a :href="$buildUrl({s: post.subName}, false)">{{ post.subName }}</a></p>
                     <p class="d-inline"> {{ post.upvotes - post.downvotes }} points <span v-if="!$readOnly">(<a href="javascript:void(0)" @click="upvote">Upvote</a> <a href="javascript:void(0)" @click="downvote">Downvote</a>)</span></p>
                     <a :href="'https://etherscan.io/address/' + post.author" target="_blank"><p class="d-inline">{{ post.author }}</p></a>
-                    <p class="d-inline">{{ post.createdAt }}</p>
+                    <p class="d-inline">{{ $formatTimestamp(post.createdAt) }}</p>
                     <p class="d-inline">{{ post.replyIds.length }} replies</p>
                     <p class="d-inline float-right font-weight-bold">#{{ index }}</p>
                 </div>
@@ -374,7 +374,7 @@
                     <!-- reply -->
                     <p class="d-inline"> {{ reply.upvotes - reply.downvotes }} points <span v-if="!$readOnly">(<a href="javascript:void(0)" @click="upvote">Upvote</a> <a href="javascript:void(0)" @click="downvote">Downvote</a>)</span></p>
                     <a :href="'https://etherscan.io/address/' + reply.author" target="_blank"><p class="d-inline">{{ reply.author }}</p></a>
-                    <p class="d-inline">{{ reply.createdAt }}</p>
+                    <p class="d-inline">{{ $formatTimestamp(reply.createdAt) }}</p>
                     <p class="d-inline float-right font-weight-bold">#{{ index }}</p>
                 </div>
                 <div class="p-2">
@@ -404,7 +404,7 @@
             template: `
             <div v-if="post !== null && replies.length === post.replyIds.length">
                 <post :post="post" index="1"></post>
-                <post v-for="(reply, index) in replies" :key="reply.replyId" :reply="reply" :index="index+2"></post>
+                <post v-for="(reply, index) in sortedReplies" :key="reply.replyId" :reply="reply" :index="index+2"></post>
             </div>
             `,
 
@@ -419,11 +419,19 @@
                 };
             },
 
+            computed: {
+                sortedReplies() {
+                    return this.replies.sort((a, b) => {
+                        return b.createdAt - a.createdAt;
+                    });
+                }
+            },
+
             async mounted() {
                 const post = await contract.getPost(this.postId);
 
                 this.post = {
-                    createdAt: convertTimestamp(post.createdAt.toNumber()),
+                    createdAt: post.createdAt.toNumber(),
                     postId: post.postId.toNumber(),
                     title: post.title,
                     author: post.author,
@@ -439,7 +447,7 @@
                     const reply = await contract.replies(replyId);
 
                     this.replies.push({
-                        createdAt: convertTimestamp(post.createdAt.toNumber()),
+                        createdAt: post.createdAt.toNumber(),
                         replyId: reply.replyId.toNumber(),
                         author: reply.author,
                         parentPostId: reply.parentPostId.toNumber(),
@@ -455,7 +463,7 @@
 
         Vue.prototype.$buildUrl = function(paramsObject, preserve=true) {
             const keys = Object.keys(paramsObject);
-            const origin = window.location.origin;
+            const origin = window.location.origin + window.location.pathname;
             
             let usp;
             if (preserve) {
@@ -471,7 +479,7 @@
             // Set a random value to bust the cache
             usp.set('cachebust', Math.floor(Math.random() * 1000000000000));
 
-            return origin + '/?' + usp.toString();
+            return origin + '?' + usp.toString();
         }
 
         Vue.prototype.$truncateString = function(str, length, ending) {
@@ -487,6 +495,8 @@
                 return str;
             }
         };
+
+        Vue.prototype.$formatTimestamp = convertTimestamp;
         
         var app = new Vue({
             el: '#app',
@@ -536,6 +546,12 @@
 
                 limit() {
                     return this.urlParams.has('limit') ? parseInt(this.urlParams.get('limit')) : 20;
+                },
+
+                sortedPosts() {
+                    return this.posts.sort((a, b) => {
+                        return b.createdAt - a.createdAt;
+                    })
                 }
             },
             
@@ -545,7 +561,7 @@
                         result.forEach((postId) => {
                             contract.getPost(postId).then((post) => {
                                 this.posts.push({
-                                    createdAt: convertTimestamp(post.createdAt.toNumber()),
+                                    createdAt: post.createdAt.toNumber(),
                                     postId: post.postId.toNumber(),
                                     title: post.title,
                                     author: post.author,
