@@ -52,7 +52,7 @@
 </head>
 <body>
     <div id="app" class="container">
-        <a :href="pathname"><h1 style="text-decoration: underline;">Reddit</h1></a>
+        <a :href="$buildUrl({}, false)"><h1 style="text-decoration: underline;">Reddit</h1></a>
         <div v-if="$readOnly">
             <p class="text-danger">MetaMask was not detected, so you are in read-only mode.</p>
         </div>
@@ -74,16 +74,23 @@
                     <th>Replies</th>
                 </tr>
                 <tr v-for="post in posts" :key="post.postId">
-                    <td><a :href="`?postId=${post.postId}`">{{ post.createdAt }}</a></td>
-                    <td><a :href="`?postId=${post.postId}`">{{ post.title }}</a></td>
-                    <td><a :href="`?postId=${post.postId}`">{{ post.upvotes - post.downvotes }}</a></td>
-                    <td><a :href="`?postId=${post.postId}`">{{ post.replyIds.length }}</a></td>
+                    <td><a :href="$buildUrl({postId: post.postId}, false)">{{ post.createdAt }}</a></td>
+                    <td><a :href="$buildUrl({postId: post.postId}, false)">{{ $truncateString(post.title) }}</a></td>
+                    <td><a :href="$buildUrl({postId: post.postId}, false)">{{ post.upvotes - post.downvotes }}</a></td>
+                    <td><a :href="$buildUrl({postId: post.postId}, false)">{{ post.replyIds.length }}</a></td>
                 </tr>
             </table>
 
-            <div class="float-right">
-                <button @click="previousClick" v-if="offset > 0">Previous</button>
-                <button @click="nextClick">Next</button>
+            <div class="d-block clearfix mt-2">
+                <button @click="nextClick" class="float-right">Next</button>
+                <button @click="previousClick" v-if="offset > 0" class="float-right">Previous</button>
+            </div>
+
+            <div class="border border-secondary mt-3 p-2">
+                <p>Recently active subs:</p>
+                <ul>
+                    <li v-for="subName in recentlyActiveSubs"><a :href="$buildUrl({s: subName})">{{ subName }}</a></li>
+                </ul>
             </div>
         </div>
         <div v-else-if="page === Page.VIEWPOST">
@@ -94,7 +101,7 @@
     <script>
         function convertTimestamp(timestamp){
             let date = new Date(timestamp*1000);
-            return date.toUTCString();
+            return date.toLocaleString();
         }
         
         function reverseEnum(e, value) {
@@ -173,7 +180,7 @@
 
                     alert("Post created successfully.");
 
-                    location.reload();
+                    document.location = this.$buildUrl({s: this.sub}, false);
                 },
 
                 canceled(e) {
@@ -335,7 +342,7 @@
                 <div v-if="post !== undefined">
                     <!-- original post -->
                     <p class="d-inline font-weight-bold">{{ post.title }}</p>
-                    <p class="d-inline" v-if="post.subName !== ''">in <a :href="'/?s=' + post.subName">{{ post.subName }}</a></p>
+                    <p class="d-inline" v-if="post.subName !== ''">in <a :href="$buildUrl({s: post.subName}, false)">{{ post.subName }}</a></p>
                     <p class="d-inline"> {{ post.upvotes - post.downvotes }} points <span v-if="!$readOnly">(<a href="javascript:void(0)" @click="upvote">Upvote</a> <a href="javascript:void(0)" @click="downvote">Downvote</a>)</span></p>
                     <a :href="'https://etherscan.io/address/' + post.author" target="_blank"><p class="d-inline">{{ post.author }}</p></a>
                     <p class="d-inline">{{ post.createdAt }}</p>
@@ -421,6 +428,41 @@
         });
 
         Vue.prototype.$readOnly = readOnly;
+
+        Vue.prototype.$buildUrl = function(paramsObject, preserve=true) {
+            const keys = Object.keys(paramsObject);
+            const origin = window.location.origin;
+            
+            let usp;
+            if (preserve) {
+                usp = new URLSearchParams(window.location.search);
+            } else {
+                usp = new URLSearchParams();
+            }
+
+            keys.forEach((key) => {
+                usp.set(key, paramsObject[key]);
+            });
+
+            // Set a random value to bust the cache
+            usp.set('cachebust', Math.floor(Math.random() * 1000000000000));
+
+            return origin + '/?' + usp.toString();
+        }
+
+        Vue.prototype.$truncateString = function(str, length, ending) {
+            if (length == null) {
+                length = 100;
+            }
+            if (ending == null) {
+                ending = '...';
+            }
+            if (str.length > length) {
+                return str.substring(0, length - ending.length) + ending;
+            } else {
+                return str;
+            }
+        };
         
         var app = new Vue({
             el: '#app',
@@ -428,6 +470,7 @@
             data () {
                 return {
                     posts: [],
+                    recentlyActiveSubs: [],
                     Page
                 }
             },
@@ -495,22 +538,35 @@
                     e.preventDefault();
 
                     const newSub = this.$refs['sub-box'].value;
-                    document.location = this.origin + '/?s=' + newSub;
+                    document.location = this.$buildUrl({s: newSub}, false);
                 },
 
                 nextClick() {
-                    this.urlParams.set('offset', this.offset + this.limit);
-                    document.location = this.origin + '/?' + this.urlParams.toString();
+                    document.location = this.$buildUrl({offset: this.offset + this.limit});
                 },
 
                 previousClick() {
-                    this.urlParams.set('offset', this.offset - this.limit);
-                    document.location = this.origin + '/?' + this.urlParams.toString();
+                    document.location = this.$buildUrl({offset: this.offset - this.limit});
+                },
+
+                fetchRecentlyActiveSubs() {
+                    this.recentlyActiveSubs = [];
+
+                    contract.getRecentlyActiveSubs().then((result) => {
+                        const subNames = result.map((bytes32) => ethers.utils.parseBytes32String(bytes32)).filter((name) => name !== '');
+
+                        subNames.forEach((name) => {
+                            if (!this.recentlyActiveSubs.includes(name)) {
+                                this.recentlyActiveSubs.push(name);
+                            }
+                        });
+                    });
                 }
             },
             
             mounted () {
                 this.loadPosts();
+                this.fetchRecentlyActiveSubs();
             }
         });
     </script>
