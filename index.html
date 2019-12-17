@@ -48,17 +48,22 @@
             margin-top: 10px;
             margin-bottom: 10px;
         }
+
+        .help-text a {
+            font-size: 1.2rem;
+            color: red;
+        }
     </style>
 </head>
 <body>
     <div id="app" class="container">
-        <a :href="$buildUrl({}, false)"><h1 style="text-decoration: underline;">Reddit</h1></a>
+        <a :href="$buildUrl({}, false)"><h1 style="text-decoration: underline;" class="d-inline mr-2">Reddit</h1></a><p class="d-inline help-text"><a :href="$buildUrl({page: 'help'}, false)">Help</a></p>
         <div v-if="$readOnly">
             <p class="text-danger">MetaMask was not detected, so you are in read-only mode.</p>
         </div>
         
         <div v-if="page === Page.HOME">
-            <new-post-form class="d-inline" v-if="!$readOnly"></new-post-form>
+            <new-post-form class="d-inline" v-if="!$readOnly" :default-sub="sub"></new-post-form>
             <form class="d-inline float-right">
                 <label>Sub: 
                     <input type="text" :value="sub" ref="sub-box"></input>
@@ -95,6 +100,18 @@
         </div>
         <div v-else-if="page === Page.VIEWPOST">
             <view-post-page :post-id="postId"></view-post-page>
+        </div>
+        <div v-else-if="page === Page.HELP" class="border border-secondary mt-3 p-3">
+            <h2>Useful information:</h2>
+            <p>You (probably) need MetaMask to do posts, replies, votes, etc. You should still be able to view everything even without it.</p>
+            <p>In posts you can:</p>
+            <ol>
+                <li>Prefix a URL with <code>img:</code> to show a preview. <code>E.g. img:https://ipfs.io/ipfs/QmUwHMFY9GSiKgjqyZpgAv2LhBrh7GV8rtLuagbry9wmMU</code></li>
+                <li>Previews are shown automatically for URLs ending in .jpg, .jpeg, .png, and .gif.</li>
+                <li>Prefix an Ethereum transaction hash with <code>eth-tx-img:</code> to embed the image stored inside the transaction input. <code style="white-space: pre;">E.g. eth-tx-img:0x1013929251687ff7f6a7e2e0c7e3caae6fd93a2342dd5ad9793ff33c5802269f</code></li>
+            </ol>
+            <p>If you save a local copy of this page then you should still be able to view everything, however MetaMask cannot interact with the file:// protocol.</p>
+            <p>All the front-end code is in this single file, so you can edit it directly.</p>
         </div>
     </div>
     
@@ -151,16 +168,20 @@
             contract = contract.connect(signer);
         }
         
-        const Page = {"HOME": 0, "VIEWPOST": 1};
+        const Page = {"HOME": 0, "VIEWPOST": 1, "HELP": 2};
         Object.freeze(Page);
 
         const IMAGE_REGEX = /(?=(?:img:)?|.*(?:\.(?:jpg|jpeg|png|gif)))((?:(?:f|ht)tp(?:s)?:\/\/)[-a-zA-Zа-яА-Я()0-9@:%_+.~#?&;//=]+)/gi;
 
         Vue.component('new-post-form', {
+            props: {
+                defaultSub: {required: false, default: ''}
+            },
+
             data() {
                 return {
                     showing: false,
-                    sub: '',
+                    sub: this.defaultSub,
                     title: '',
                     body: '',
                     link: '',
@@ -178,7 +199,7 @@
 
                     await tx.wait();
 
-                    alert("Post created successfully.");
+                    alert("Post created successfully. PLEASE BE PATIENT AS IT CAN TAKE A FEW MINUTES FOR POSTS TO CONFIRM AND SHOW UP.");
 
                     document.location = this.$buildUrl({s: this.sub}, false);
                 },
@@ -227,7 +248,7 @@
 
                     await tx.wait();
 
-                    alert("Reply created successfully.");
+                    alert("Reply created successfully. PLEASE BE PATIENT AS IT CAN TAKE A FEW MINUTES FOR REPLIES TO CONFIRM AND SHOW UP.");
 
                     this.showing = false;
 
@@ -363,7 +384,7 @@
                         <!-- Previews -->
                         <div v-for="preview in previews" v-html="preview"></div>
                     </div>
-                    <div v-else>
+                    <div v-else-if="previews.length > 0">
                         <p><a href="javascript:void(0)" @click="showPreviews=true" style="color: green;">Click here to load image previews!</a><span class="text-danger" style="font-size: 0.8rem;"> Loading previews can leak your IP to the image host.</span></p>
                     </div>
                 </div>
@@ -495,6 +516,8 @@
                 page() {
                     if (this.urlParams.has('postId')) {
                         return Page.VIEWPOST;
+                    } else if (this.urlParams.has('page') && this.urlParams.get('page') === 'help') {
+                        return Page.HELP;
                     }
                     
                     return Page.HOME;
