@@ -261,7 +261,8 @@
 
             data() {
                 return {
-                    previews: []
+                    previews: [],
+                    showPreviews: false
                 };
             },
 
@@ -358,9 +359,12 @@
                 </div>
                 <div class="p-2">
                     <p><span style="white-space: pre;" ref="post-text">{{ contentText }}</span></p>
-                    <div>
+                    <div v-if="showPreviews">
                         <!-- Previews -->
                         <div v-for="preview in previews" v-html="preview"></div>
+                    </div>
+                    <div v-else>
+                        <p><a href="javascript:void(0)" @click="showPreviews=true" style="color: green;">Click here to load image previews!</a><span class="text-danger" style="font-size: 0.8rem;"> Loading previews can leak your IP to the image host.</span></p>
                     </div>
                 </div>
 
