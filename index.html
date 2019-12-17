@@ -8,7 +8,10 @@
     <meta http-equiv="Expires" content="0" />
 
     <!-- development version, includes helpful console warnings -->
-    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script> -->
+    
+    <!-- production version, optimized for size and speed -->
+    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
     
     <script src="https://cdn.ethers.io/scripts/ethers-v4.min.js"
     charset="utf-8"
@@ -146,8 +149,8 @@
             }).join(""));
         }
         
-        const CONTRACT_ADDRESS = '0x758200d5A48B4915a7592D51E0567d2a352d27F5';
-        const CONTRACT_ABI = [{"constant":false,"inputs":[{"internalType":"string","name":"title","type":"string"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"bytes32","name":"subName","type":"bytes32"}],"name":"createPost","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"parentPostId","type":"uint256"},{"internalType":"bytes","name":"content","type":"bytes"}],"name":"createReply","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"postId","type":"uint256"}],"name":"downvotePost","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"replyId","type":"uint256"}],"name":"downvoteReply","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"postId","type":"uint256"}],"name":"upvotePost","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"replyId","type":"uint256"}],"name":"upvoteReply","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"internalType":"uint256","name":"pid","type":"uint256"}],"name":"getPost","outputs":[{"internalType":"uint256","name":"createdAt","type":"uint256"},{"internalType":"uint256","name":"postId","type":"uint256"},{"internalType":"string","name":"title","type":"string"},{"internalType":"address","name":"author","type":"address"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"uint256","name":"upvotes","type":"uint256"},{"internalType":"uint256","name":"downvotes","type":"uint256"},{"internalType":"bytes32","name":"subName","type":"bytes32"},{"internalType":"uint256[]","name":"replyIds","type":"uint256[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"getRecentlyActiveSubs","outputs":[{"internalType":"bytes32[]","name":"","type":"bytes32[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"internalType":"bytes32","name":"subName","type":"bytes32"},{"internalType":"uint256","name":"offset","type":"uint256"},{"internalType":"uint256","name":"limit","type":"uint256"}],"name":"getRecentPostIdsInSub","outputs":[{"internalType":"uint256[]","name":"postIds","type":"uint256[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"replies","outputs":[{"internalType":"uint256","name":"createdAt","type":"uint256"},{"internalType":"uint256","name":"replyId","type":"uint256"},{"internalType":"uint256","name":"parentPostId","type":"uint256"},{"internalType":"address","name":"author","type":"address"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"uint256","name":"upvotes","type":"uint256"},{"internalType":"uint256","name":"downvotes","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"subCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalPosts","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalReplies","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}];
+        const CONTRACT_ADDRESS = '0x8D3AbD6664bdf0abfA5cf5344cf0F81f2f34d79D';
+        const CONTRACT_ABI = [{"constant":false,"inputs":[{"internalType":"string","name":"title","type":"string"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"bytes32","name":"subName","type":"bytes32"}],"name":"createPost","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"parentPostId","type":"uint256"},{"internalType":"bytes","name":"content","type":"bytes"}],"name":"createReply","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"postId","type":"uint256"}],"name":"downvotePost","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"replyId","type":"uint256"}],"name":"downvoteReply","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"internalType":"uint256","name":"pid","type":"uint256"}],"name":"getPost","outputs":[{"internalType":"uint256","name":"createdAt","type":"uint256"},{"internalType":"uint256","name":"postId","type":"uint256"},{"internalType":"string","name":"title","type":"string"},{"internalType":"address","name":"author","type":"address"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"uint256","name":"upvotes","type":"uint256"},{"internalType":"uint256","name":"downvotes","type":"uint256"},{"internalType":"bytes32","name":"subName","type":"bytes32"},{"internalType":"uint256[]","name":"replyIds","type":"uint256[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"internalType":"bytes32","name":"subName","type":"bytes32"},{"internalType":"uint256","name":"offset","type":"uint256"},{"internalType":"uint256","name":"limit","type":"uint256"}],"name":"getRecentPostIdsInSub","outputs":[{"internalType":"uint256[]","name":"postIds","type":"uint256[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"getRecentlyActiveSubs","outputs":[{"internalType":"bytes32[]","name":"","type":"bytes32[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"replies","outputs":[{"internalType":"uint256","name":"createdAt","type":"uint256"},{"internalType":"uint256","name":"replyId","type":"uint256"},{"internalType":"uint256","name":"parentPostId","type":"uint256"},{"internalType":"address","name":"author","type":"address"},{"internalType":"bytes","name":"content","type":"bytes"},{"internalType":"uint256","name":"upvotes","type":"uint256"},{"internalType":"uint256","name":"downvotes","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"subCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalPosts","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalReplies","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"postId","type":"uint256"}],"name":"upvotePost","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"internalType":"uint256","name":"replyId","type":"uint256"}],"name":"upvoteReply","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}];
 
         var provider;
         var signer = null;
@@ -159,7 +162,7 @@
 
             window.ethereum.enable();
         } else {
-            provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');    
+            provider = ethers.getDefaultProvider();
         }
         
         const readOnly = signer === null;
@@ -199,9 +202,11 @@
 
                     const tx = await contract.createPost(this.title, content, ethers.utils.formatBytes32String(this.sub));
 
-                    await tx.wait();
+                    alert("Post sent successfully. PLEASE BE PATIENT AS IT CAN TAKE A FEW MINUTES FOR POSTS TO CONFIRM AND SHOW UP.");
 
-                    alert("Post created successfully. PLEASE BE PATIENT AS IT CAN TAKE A FEW MINUTES FOR POSTS TO CONFIRM AND SHOW UP.");
+                    this.showing = false;
+
+                    await tx.wait();
 
                     document.location = this.$buildUrl({s: this.sub}, false);
                 },
@@ -248,13 +253,13 @@
 
                     const tx = await contract.createReply(this.parentPostId, content);
 
-                    await tx.wait();
-
                     alert("Reply created successfully. PLEASE BE PATIENT AS IT CAN TAKE A FEW MINUTES FOR REPLIES TO CONFIRM AND SHOW UP.");
 
                     this.showing = false;
 
-                    location.reload();
+                    await tx.wait();
+
+                    this.body = '';
                 },
 
                 canceled(e) {
@@ -332,11 +337,7 @@
                         tx = await contract.upvoteReply(this.reply.replyId);
                     }
 
-                    await tx.wait();
-
-                    alert("Success.");
-
-                    location.reload();
+                    alert("Transaction sent successfully.");
                 },
 
                 async downvote() {
@@ -348,11 +349,7 @@
                         tx = await contract.downvoteReply(this.reply.replyId);
                     }
 
-                    await tx.wait();
-
-                    alert("Success.");
-
-                    location.reload();
+                    alert("Transaction sent successfully.");
                 }
             },
 
