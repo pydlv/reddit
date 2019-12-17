@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Reddit</title>
+    <title>Divvy</title>
 
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
@@ -57,7 +57,9 @@
 </head>
 <body>
     <div id="app" class="container">
-        <a :href="$buildUrl({}, false)"><h1 style="text-decoration: underline;" class="d-inline mr-2">Reddit</h1></a><p class="d-inline help-text"><a :href="$buildUrl({page: 'help'}, false)">Help</a></p>
+        <div class="mb-2">
+            <a :href="$buildUrl({}, false)" style="text-decoration: none;"><h1 class="d-inline mr-2">Divvy</h1></a><p class="d-inline help-text"><a :href="$buildUrl({page: 'help'}, false)">Help</a></p>
+        </div>
         <div v-if="$readOnly">
             <p class="text-danger">MetaMask was not detected, so you are in read-only mode.</p>
         </div>

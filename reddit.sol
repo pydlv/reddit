@@ -1,6 +1,6 @@
 pragma solidity ^0.5.12;
 
-contract Reddit {
+contract Divvy {
     struct Post {
         uint createdAt;
         uint postId;
