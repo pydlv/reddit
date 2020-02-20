@@ -155,23 +155,26 @@
         var provider;
         var signer = null;
         
-        if (typeof window.web3 !== 'undefined' && typeof window.ethereum !== 'undefined') {
-            // MetaMask injected
-            provider = new ethers.providers.Web3Provider(web3.currentProvider);
-            signer = provider.getSigner();
+        // if (typeof window.web3 !== 'undefined' && typeof window.ethereum !== 'undefined') {
+        //     // MetaMask injected
+        //     provider = new ethers.providers.Web3Provider(web3.currentProvider);
+        //     signer = provider.getSigner();
+        //
+        //     window.ethereum.enable();
+        // } else {
+        //     provider = ethers.getDefaultProvider();
+        // }
+        //
+        // const readOnly = signer === null;
+        //
+        //
+        // var contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+        // if (!readOnly) {
+        //     contract = contract.connect(signer);
+        // }
 
-            window.ethereum.enable();
-        } else {
-            provider = ethers.getDefaultProvider();
-        }
-        
-        const readOnly = signer === null;
-
-
-        var contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
-        if (!readOnly) {
-            contract = contract.connect(signer);
-        }
+        var readOnly;
+        var contract;
         
         const Page = {"HOME": 0, "VIEWPOST": 1, "HELP": 2};
         Object.freeze(Page);
@@ -497,8 +500,11 @@
         };
 
         Vue.prototype.$formatTimestamp = convertTimestamp;
-        
-        var app = new Vue({
+
+        var app;
+
+        function createApp() {
+        app = new Vue({
             el: '#app',
             
             data () {
@@ -610,6 +616,55 @@
                 this.loadPosts();
                 this.fetchRecentlyActiveSubs();
             }
+        });
+        }
+
+        window.addEventListener('load', async () => {
+            let useDefaultProvider = true;
+
+            // Modern dapp browsers...
+            if (window.ethereum) {
+                window.web3 = new Web3(ethereum);
+                try {
+                    // Request account access if needed
+                    await ethereum.enable();
+                    // Acccounts now exposed
+                    useDefaultProvider = false;
+                } catch (error) {
+                    // User denied account access...
+                    useDefaultProvider = true;
+                }
+            }
+            // Legacy dapp browsers...
+            else if (window.web3) {
+                window.web3 = new Web3(web3.currentProvider);
+                // Acccounts always exposed
+                useDefaultProvider = false;
+            }
+            // Non-dapp browsers...
+            else {
+                console.log('Non-Ethereum browser detected. You should consider trying MetaMask!');
+                useDefaultProvider = true;
+            }
+
+            if (useDefaultProvider) {
+                readOnly = true;
+                Vue.prototype.$readOnly = readOnly;
+                provider = ethers.getDefaultProvider();
+            } else {
+                provider = new ethers.providers.Web3Provider(web3.currentProvider);
+                signer = provider.getSigner();
+                readOnly = false;
+                Vue.prototype.$readOnly = readOnly;
+            }
+
+            contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+
+            if (!useDefaultProvider) {
+                contract = contract.connect(signer);
+            }
+
+            createApp();
         });
     </script>
 </body>
